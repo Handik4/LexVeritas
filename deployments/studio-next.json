@@ -3,13 +3,13 @@
   "rpc_url": "https://studio-next.genlayer.com/api",
   "chain_id": 61997,
   "contract": "LexVeritas",
-  "contract_address": "0x8bF4327969ac856E4c2612c45571ecF217c03Cfa",
-  "explorer_url": "https://explorer-studio-next.genlayer.com/address/0x8bF4327969ac856E4c2612c45571ecF217c03Cfa",
-  "deploy_tx": "0xc1dcc4c5707eba50120ae6d897fcca440e93781f6046e7b76f13fccecc2af509",
-  "deployer": "0x7A4D99c09A56Dda50905ffFAA92ED73d564e43F5",
-  "deployed_at": "2026-09-25T05:47:36Z",
+  "contract_address": "0xC94fa4F7e8EFB324782b8df5DdA1A7d096238bb8",
+  "explorer_url": "https://explorer-studio-next.genlayer.com/address/0xC94fa4F7e8EFB324782b8df5DdA1A7d096238bb8",
+  "deploy_tx": "0x9253f7c552dc25864cad77bde46984eb3d631e1597f0830ef82f2a3e2affbbfa",
+  "deployer": "0x1633C5e5BB8077B7DaDd4832F15cEB04a5E0347d",
+  "deployed_at": "2026-09-25T08:15:48Z",
   "source": "contracts/lex_veritas.py",
-  "source_sha256": "78b765b09f29bfca3d223a23155322e603918124e520312c2293123b22af1101",
+  "source_sha256": "af948aaadc516704b7de56fe65b2f8a319b9359ef8a055943bc6bbcb44cab22e",
   "runner": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
   "version": "0.3.0",
   "config": {
@@ -56,8 +56,15 @@
     "status": "DECIDED",
     "result": "MAJORITY_AGREE"
   },
-  "revision": "audit fixes: criteria+bond bound into market_id; line-anchored roles and quoted JSON keys in sanitizer; unreadable round 1 reverts (no PENDING parking); per-market dispute bond with 2x counter; round-1 content hashes and round-2 stealth-edit notice; run_nondet with exception-proof validator",
+  "revision": "neutral round-2 content-change notice; removed dead DS_PENDING constant",
   "supersedes": [
+    {
+      "contract_address": "0x8bF4327969ac856E4c2612c45571ecF217c03Cfa",
+      "deploy_tx": "0xc1dcc4c5707eba50120ae6d897fcca440e93781f6046e7b76f13fccecc2af509",
+      "deployed_at": "2026-09-25T05:47:36Z",
+      "source_sha256": "78b765b09f29bfca3d223a23155322e603918124e520312c2293123b22af1101",
+      "revision": "audit fixes: criteria+bond bound into market_id; line-anchored roles and quoted JSON keys in sanitizer; unreadable round 1 reverts (no PENDING parking); per-market dispute bond with 2x counter; round-1 content hashes and round-2 stealth-edit notice; run_nondet with exception-proof validator"
+    },
     {
       "contract_address": "0xD829765Ff320a79D0F557192569906683F80C951",
       "deploy_tx": "0xfa4f1cb00a176c9a3b6b46976dbba5b2e86e08b3e01e71970f7bed1a5b51e357",

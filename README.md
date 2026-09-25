@@ -12,7 +12,7 @@ up on the correct side takes both bonds.
 | | |
 |---|---|
 | Contract | [`contracts/lex_veritas.py`](contracts/lex_veritas.py) (`# v0.3.0`, audit-fix revision) |
-| Deployed | Studio Next, [`0x8bF4327969ac856E4c2612c45571ecF217c03Cfa`](https://explorer-studio-next.genlayer.com/address/0x8bF4327969ac856E4c2612c45571ecF217c03Cfa), see [`deployments/studio-next.json`](deployments/studio-next.json) |
+| Deployed | Studio Next, [`0xC94fa4F7e8EFB324782b8df5DdA1A7d096238bb8`](https://explorer-studio-next.genlayer.com/address/0xC94fa4F7e8EFB324782b8df5DdA1A7d096238bb8), see [`deployments/studio-next.json`](deployments/studio-next.json) |
 | Tests | 89 direct-mode tests, 0 failures ([`tests/direct/`](tests/direct)) |
 | Security review | Score 8.2; every finding fixed, see [section 10](#10-security-review-response) |
 | Specs | [`specs/architecture.md`](specs/architecture.md), [`specs/game_theory.md`](specs/game_theory.md) |
