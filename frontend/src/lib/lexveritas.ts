@@ -7,6 +7,7 @@ export const RPC_URL: string = import.meta.env.VITE_GENLAYER_RPC ?? deployment.r
 export const EXPLORER_URL: string | null = deployment.explorer_url
 export const DEPLOYED_AT: string = deployment.deployed_at
 export const REPO_URL = 'https://github.com/Handik4/LexVeritas'
+export const STUDIO_CHAIN_ID: number = deployment.chain_id
 
 export type Verdict =
   | 'OUTCOME_YES'
@@ -114,6 +115,24 @@ export async function fetchLiveCases(limit = 50): Promise<Case[]> {
   return disputes.map((dispute) => ({ dispute, market: markets.get(dispute.market_id)! })).reverse()
 }
 
+/** Cheap liveness check (eth_chainId) that also confirms the endpoint is Studio Next. */
+export async function probeRpc(timeoutMs = 8000): Promise<void> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}',
+      signal: ctrl.signal,
+    })
+    const { result } = (await res.json()) as { result?: string }
+    if (!result || parseInt(result, 16) !== STUDIO_CHAIN_ID) throw new Error(`unexpected chain ${result}`)
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 export const fetchAccounting = () => read<Accounting>('get_accounting')
 export const fetchCounts = () => read<{ markets: number; disputes: number }>('get_counts')
 
@@ -144,6 +163,15 @@ export const formatGen = (atto: string | number) => {
 }
 
 export const shortHex = (h: string, n = 6) => (h && h.length > 2 * n + 2 ? `${h.slice(0, n + 2)}...${h.slice(-n)}` : h)
+
+/** Path of a URL for display; never throws on malformed input. */
+export const pathOf = (url: string) => {
+  try {
+    return new URL(url).pathname
+  } catch {
+    return ''
+  }
+}
 
 export const hostOf = (url: string) => {
   try {

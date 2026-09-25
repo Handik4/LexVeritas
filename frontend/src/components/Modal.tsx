@@ -1,6 +1,16 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
-/** Accessible dialog: Escape and backdrop close it, focus moves in and returns on close, page scroll is locked. */
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Accessible dialog: Escape and backdrop close it, focus moves in, stays in
+ * (Tab wraps), and returns on close; page scroll is locked while open.
+ *
+ * Rendered through a portal on document.body: an ancestor with
+ * backdrop-filter (the navbar's blur) would otherwise become the containing
+ * block for `position: fixed` and shrink the overlay to that ancestor's box.
+ */
 export function Modal({ open, onClose, title, eyebrow, children, wide = false }: {
   open: boolean
   onClose: () => void
@@ -11,11 +21,36 @@ export function Modal({ open, onClose, title, eyebrow, children, wide = false }:
 }) {
   const panel = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  // Parents pass inline callbacks that change identity on every render (the
+  // page refreshes on a timer). Reading the latest one through a ref keeps the
+  // open/close effect from re-running, which would steal focus back to the
+  // panel mid-interaction.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !panel.current) return
+      const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      if (!items.length) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -25,12 +60,12 @@ export function Modal({ open, onClose, title, eyebrow, children, wide = false }:
       document.body.style.overflow = overflow
       previous?.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
-      <div className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm" onClick={() => onCloseRef.current()} aria-hidden />
       <div
         ref={panel}
         role="dialog"
@@ -49,7 +84,7 @@ export function Modal({ open, onClose, title, eyebrow, children, wide = false }:
             </h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => onCloseRef.current()}
             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-100"
             aria-label="Close"
           >
@@ -60,6 +95,7 @@ export function Modal({ open, onClose, title, eyebrow, children, wide = false }:
         </header>
         <div className="px-5 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AboutModal } from './components/AboutModal'
 import { CaseViewer } from './components/CaseViewer'
 import { DisputeFeed } from './components/DisputeFeed'
@@ -12,6 +12,7 @@ import {
   fetchCounts,
   fetchLiveCases,
   formatGen,
+  probeRpc,
   shortHex,
   type Accounting,
   type Case,
@@ -43,50 +44,83 @@ function SolvencyState({ accounting }: { accounting: Accounting }) {
 }
 
 const REFRESH_MS = 20_000
+const MAX_BACKOFF_MS = 60_000
 // Sample ids are abbreviated with '...'; live dispute ids are full keccak hex.
 const isSample = (c: Case) => c.dispute.dispute_id.includes('...')
 
-export default function App() {
-  const [cases, setCases] = useState<Case[]>([])
-  const [source, setSource] = useState<Source>('loading')
-  const [counts, setCounts] = useState<{ markets: number; disputes: number } | null>(null)
-  const [accounting, setAccounting] = useState<Accounting | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [aboutOpen, setAboutOpen] = useState(false)
+interface Sync {
+  source: Source
+  cases: Case[]
+  counts: { markets: number; disputes: number } | null
+  accounting: Accounting | null
+  lastSynced: number | null
+  failures: number
+}
 
-  const load = useCallback(async () => {
-    try {
-      const [live, c, acc] = await Promise.all([fetchLiveCases(), fetchCounts(), fetchAccounting()])
-      setCounts(c)
-      setAccounting(acc)
-      setError(null)
-      if (live.length > 0) {
-        setCases(live)
-        setSource('live')
-      } else {
-        setCases((prev) => (prev.length && isSample(prev[0]) ? prev : sampleCases()))
-        setSource('sample')
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message.split('\n')[0] : String(e))
-      setCases((prev) => (prev.length ? prev : sampleCases()))
-      setSource((s) => (s === 'live' ? 'live' : 'offline'))
+const INITIAL: Sync = { source: 'loading', cases: [], counts: null, accounting: null, lastSynced: null, failures: 0 }
+
+/**
+ * One sync cycle. A cheap health probe runs first, so an unreachable RPC costs
+ * a single failed request instead of six (genlayer-js logs each failed
+ * contract read to the console). On failure the last good data stays on
+ * screen; before any success, the sample cases do.
+ */
+async function syncOnce(prev: Sync): Promise<Sync> {
+  try {
+    await probeRpc()
+    const [live, counts, accounting] = await Promise.all([fetchLiveCases(), fetchCounts(), fetchAccounting()])
+    const cases = live.length ? live : prev.cases.length && isSample(prev.cases[0]) ? prev.cases : sampleCases()
+    return { source: live.length ? 'live' : 'sample', cases, counts, accounting, lastSynced: Date.now(), failures: 0 }
+  } catch {
+    return { ...prev, cases: prev.cases.length ? prev.cases : sampleCases(), source: 'offline', failures: prev.failures + 1 }
+  }
+}
+
+const since = (ts: number) => {
+  const s = Math.round((Date.now() - ts) / 1000)
+  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)} min ago`
+}
+
+export default function App() {
+  const [sync, setSync] = useState<Sync>(INITIAL)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
+  const [retrying, setRetrying] = useState(false)
+  const { source, cases, counts, accounting, lastSynced, failures } = sync
+  // Last known state, so a manual retry (which restarts the loop) keeps the
+  // data on screen, its "last synced" time and the attempt count.
+  const syncRef = useRef<Sync>(INITIAL)
+
+  // Poll with exponential backoff while the RPC is unreachable. The chain of
+  // timeouts (not an interval) guarantees cycles never overlap.
+  useEffect(() => {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const cycle = async () => {
+      const next = await syncOnce(syncRef.current)
+      if (cancelled) return
+      syncRef.current = next
+      setSync(next)
+      setRetrying(false)
+      const delay = next.failures ? Math.min(MAX_BACKOFF_MS, 5_000 * 2 ** (next.failures - 1)) : REFRESH_MS
+      timer = setTimeout(cycle, delay)
     }
+    cycle()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [retryToken])
+
+  const retryNow = useCallback(() => {
+    setRetrying(true)
+    setRetryToken((t) => t + 1)
   }, [])
 
-  useEffect(() => {
-    load()
-    const id = setInterval(load, REFRESH_MS)
-    return () => clearInterval(id)
-  }, [load])
-
-  useEffect(() => {
-    if (!selected && cases.length) setSelected(cases[0].dispute.dispute_id)
-  }, [cases, selected])
-
-  const current = cases.find((c) => c.dispute.dispute_id === selected)
-
+  // The first case is selected until the user picks one (derived, not synced by an effect).
+  const selectedId = selected && cases.some((c) => c.dispute.dispute_id === selected) ? selected : (cases[0]?.dispute.dispute_id ?? null)
+  const current = cases.find((c) => c.dispute.dispute_id === selectedId)
   const online = source === 'loading' ? null : source !== 'offline'
 
   return (
@@ -128,15 +162,25 @@ export default function App() {
             disputes replace them automatically. The simulator always runs against the live contract.
           </div>
         )}
-        {error && (
-          <div className="mb-4 rounded-xl border border-rose-400/20 bg-rose-400/[0.06] px-4 py-2.5 text-sm text-rose-200" role="alert">
-            Could not read the contract: {error}
+        {source === 'offline' && (
+          <div
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-2.5 text-sm text-amber-100"
+            role="status"
+          >
+            <span>
+              <strong className="font-semibold">Studio Next RPC unreachable.</strong>{' '}
+              {lastSynced ? `Showing data last synced ${since(lastSynced)}.` : 'Showing sample cases until the network responds.'}{' '}
+              Reconnecting automatically{failures > 1 ? ` (attempt ${failures})` : ''}.
+            </span>
+            <button onClick={retryNow} disabled={retrying} className="btn border border-amber-300/30 py-1 text-amber-100 hover:bg-amber-300/10">
+              {retrying ? 'Retrying...' : 'Retry now'}
+            </button>
           </div>
         )}
 
         <section id="disputes" className="scroll-mt-24" aria-label="Active disputes">
           <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-            <DisputeFeed cases={cases} selected={selected} onSelect={setSelected} />
+            <DisputeFeed cases={cases} selected={selectedId} onSelect={setSelected} />
             <CaseViewer c={current} />
           </div>
         </section>

@@ -1,4 +1,4 @@
-import { EXPLORER_URL, formatGen, hostOf, shortHex, type Case } from '../lib/lexveritas'
+import { EXPLORER_URL, formatGen, hostOf, pathOf, shortHex, type Case } from '../lib/lexveritas'
 import { Countdown } from './Countdown'
 import { Confidence, Panel, StatusPill, VerdictBadge } from './ui'
 
@@ -87,7 +87,7 @@ export function CaseViewer({ c }: { c: Case | undefined }) {
       title={
         <a href={market.market_url} target="_blank" rel="noreferrer noopener" className="hover:text-emerald-300">
           {hostOf(market.market_url)}
-          <span className="font-normal text-slate-500">{new URL(market.market_url).pathname}</span>
+          <span className="break-all font-normal text-slate-500">{pathOf(market.market_url)}</span>
         </a>
       }
       actions={<StatusPill status={dispute.status} />}

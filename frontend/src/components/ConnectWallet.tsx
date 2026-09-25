@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatGen, shortHex } from '../lib/lexveritas'
-import { useWallet } from '../lib/wallet'
+import { useWallet } from '../lib/walletContext'
 import { Modal } from './Modal'
 
 function WalletOption({ title, detail, badge, onClick, disabled }: {
@@ -39,11 +39,6 @@ export function ConnectWallet() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [menu])
 
-  // A successful connection from the picker closes it.
-  useEffect(() => {
-    if (w.status === 'connected') setPicker(false)
-  }, [w.status])
-
   if (w.address) {
     return (
       <div className="relative" ref={menuRef}>
@@ -51,13 +46,21 @@ export function ConnectWallet() {
           onClick={() => setMenu((m) => !m)}
           aria-expanded={menu}
           aria-haspopup="menu"
-          className="flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] py-1.5 pl-2 pr-3 text-sm transition hover:border-emerald-400/45"
+          className={`flex items-center gap-2 rounded-xl border py-1.5 pl-2 pr-3 text-sm transition ${
+            w.wrongNetwork
+              ? 'border-amber-300/40 bg-amber-300/[0.08] hover:border-amber-300/60'
+              : 'border-emerald-400/25 bg-emerald-400/[0.06] hover:border-emerald-400/45'
+          }`}
         >
-          <span className="h-6 w-6 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500" aria-hidden />
-          <span className="font-mono text-slate-100">{shortHex(w.address, 2)}</span>
-          <span className="hidden font-mono text-xs text-emerald-200 sm:inline">
-            {w.balance === null ? '...' : formatGen(w.balance.toString())}
-          </span>
+          <span className="h-6 w-6 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500" aria-hidden />
+          <span className="font-mono text-slate-100">{shortHex(w.address, 4)}</span>
+          {w.wrongNetwork ? (
+            <span className="hidden text-xs font-medium text-amber-200 sm:inline">Wrong network</span>
+          ) : (
+            <span className="hidden min-w-[4.5rem] text-right font-mono text-xs tabular-nums text-emerald-200 sm:inline">
+              {w.balance === null ? '...' : formatGen(w.balance.toString())}
+            </span>
+          )}
         </button>
         {menu && (
           <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-72 rounded-xl border border-indigo-400/15 bg-slate-900/95 p-3 shadow-2xl backdrop-blur">
@@ -66,6 +69,14 @@ export function ConnectWallet() {
             <p className="mt-2 font-mono text-lg text-emerald-200">
               {w.balance === null ? 'Loading balance...' : formatGen(w.balance.toString())}
             </p>
+            {w.wrongNetwork && (
+              <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.06] p-2.5">
+                <p className="text-xs text-amber-100">Your wallet is on another network. LexVeritas runs on GenLayer Studio Next (61997).</p>
+                <button onClick={w.switchNetwork} className="btn mt-2 w-full bg-amber-300 py-1.5 text-amber-950 hover:bg-amber-200">
+                  Switch to Studio Next
+                </button>
+              </div>
+            )}
             {w.kind === 'guest' && (
               <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                 A throwaway Studio Next key kept in this browser. Test tokens only; never send real funds to it.
@@ -108,7 +119,7 @@ export function ConnectWallet() {
             title="Studio Guest Wallet"
             badge="100 GEN FAUCET"
             detail="Creates a throwaway key in this browser and funds it with 100 test GEN from the Studio faucet. Nothing to install."
-            onClick={w.connectGuest}
+            onClick={async () => (await w.connectGuest()) && setPicker(false)}
             disabled={busy}
           />
           <WalletOption
@@ -118,7 +129,7 @@ export function ConnectWallet() {
                 ? 'Connects your browser wallet and adds or switches to GenLayer Studio Next (61997).'
                 : 'No browser wallet detected in this browser.'
             }
-            onClick={w.connectInjected}
+            onClick={async () => (await w.connectInjected()) && setPicker(false)}
             disabled={busy || !w.hasInjected}
           />
         </div>
