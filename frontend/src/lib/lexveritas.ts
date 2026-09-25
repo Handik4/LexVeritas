@@ -6,6 +6,7 @@ export const CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS ?? deploy
 export const RPC_URL: string = import.meta.env.VITE_GENLAYER_RPC ?? deployment.rpc_url
 export const EXPLORER_URL: string | null = deployment.explorer_url
 export const DEPLOYED_AT: string = deployment.deployed_at
+export const REPO_URL = 'https://github.com/Handik4/LexVeritas'
 
 export type Verdict =
   | 'OUTCOME_YES'
