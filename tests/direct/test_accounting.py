@@ -23,7 +23,6 @@ from conftest import (
     REUTERS,
     AP,
     SPLIT,
-    STALE,
     T0,
     WINDOW,
     YES,
@@ -71,17 +70,21 @@ def test_strict_accounting_solvency_invariant(funded, direct_alice, direct_bob, 
     acc = chain.assert_solvent()
     assert int(acc["total_staked_bonds"]) == 2 * DISPUTE_BOND + COUNTER_BOND
 
-    # Market 3: sources down -> pending -> released as stale.
-    m3 = chain.call("register_market", "https://polymarket.com/event/m3", CRITERIA, CUTOFF, sender=direct_charlie)
+    # Market 3: scaled 10 GEN bond; first attempt cites a dead link and reverts
+    # with nothing booked, the second succeeds and is challenged at 20 GEN.
+    big = 10 * ATTO
+    m3 = chain.call("register_market", "https://polymarket.com/event/m3", CRITERIA, CUTOFF, big, sender=direct_charlie)
     chain.web(r"deadsource\.org", {"status": 503, "body": ""})
-    d3 = chain.call("raise_dispute", m3, ["https://deadsource.org/x"], sender=direct_charlie, value=DISPUTE_BOND)
+    chain.reverts("[UNRESOLVED_EVIDENCE]", "raise_dispute", m3, ["https://deadsource.org/x"], sender=direct_charlie, value=big)
     step()
-    assert chain.view("get_dispute", d3)["status"] == "PENDING_CONSENSUS"
+    d3 = chain.call("raise_dispute", m3, [GOV], sender=direct_charlie, value=big)
+    step()
+    chain.call("challenge_verdict", d3, [COUNTER_2], sender=direct_alice, value=2 * big)
+    step()
 
     chain.call("finalize_resolution", d2, sender=direct_alice)
     step()
-    chain.warp(T0 + STALE)
-    chain.call("release_stale_dispute", d3, sender=direct_alice)
+    chain.call("finalize_resolution", d3, sender=direct_bob)  # round 2 said NO: overturned
     step()
     chain.warp(T0 + WINDOW)
     chain.call("finalize_resolution", d1, sender=direct_bob)
@@ -89,12 +92,12 @@ def test_strict_accounting_solvency_invariant(funded, direct_alice, direct_bob, 
 
     acc = chain.assert_solvent()
     assert int(acc["total_staked_bonds"]) == 0
-    assert int(acc["uncollected_rewards"]) == 2 * DISPUTE_BOND + COUNTER_BOND + DISPUTE_BOND
+    assert int(acc["uncollected_rewards"]) == 2 * DISPUTE_BOND + COUNTER_BOND + 3 * big
 
     # Everyone pulls; the contract is left holding exactly nothing.
-    chain.call("claim", sender=direct_alice)  # d1: own bond back
+    chain.call("claim", sender=direct_alice)  # d1 own bond back + d3 pot (overturned)
     step()
-    chain.call("claim", sender=direct_charlie)  # d2 pot + d3 refund
+    chain.call("claim", sender=direct_charlie)  # d2 pot
     step()
     chain.reverts("nothing to claim", "claim", sender=direct_bob)  # bob was slashed on d2
     step()
@@ -102,12 +105,14 @@ def test_strict_accounting_solvency_invariant(funded, direct_alice, direct_bob, 
     acc = chain.assert_solvent()
     assert chain.contract_balance() == 0
     assert int(acc["total_staked_bonds"]) == 0 and int(acc["uncollected_rewards"]) == 0
-    assert int(acc["total_deposited"]) == int(acc["total_withdrawn"]) == 3 * DISPUTE_BOND + COUNTER_BOND
+    assert int(acc["total_deposited"]) == int(acc["total_withdrawn"]) == 2 * DISPUTE_BOND + COUNTER_BOND + 3 * big
 
-    # Net effect per participant: bob lost exactly his dispute bond to charlie.
-    assert chain.bal(direct_alice) == 100 * ATTO
+    # Net effect per participant: bob lost his 2 GEN bond to charlie on d2;
+    # charlie lost the scaled 10 GEN bond to alice on d3. The reverted dead-link
+    # attempt cost charlie nothing.
+    assert chain.bal(direct_alice) == 100 * ATTO + big
     assert chain.bal(direct_bob) == 100 * ATTO - DISPUTE_BOND
-    assert chain.bal(direct_charlie) == 100 * ATTO + DISPUTE_BOND
+    assert chain.bal(direct_charlie) == 100 * ATTO + DISPUTE_BOND - big
 
 
 def test_claim_is_pull_only_and_single_use(funded, direct_alice, direct_bob):
@@ -183,30 +188,36 @@ def test_randomized_lifecycles_conserve_value(funded, direct_alice, direct_bob, 
 
     now = T0
     open_markets, disputes = [], []
+    bond_of = {}  # market or dispute id -> dispute bond
     ok = {}
-    actions = ["register", "dispute", "challenge", "finalize", "release", "claim", "wait"]
-    weights = [2, 5, 4, 3, 2, 3, 2]
+    actions = ["register", "dispute", "challenge", "finalize", "claim", "wait"]
+    weights = [2, 5, 4, 3, 3, 2]
     for i in range(40):
         action = "register" if not open_markets else rng.choices(actions, weights)[0]
         who = rng.choice(people)
         try:
             if action == "register":
-                open_markets.append(
-                    chain.call("register_market", f"https://polymarket.com/event/s{seed}-{i}", CRITERIA, CUTOFF, sender=who)
-                )
+                bond = rng.choice([DISPUTE_BOND, DISPUTE_BOND, 5 * ATTO])
+                m = chain.call("register_market", f"https://polymarket.com/event/s{seed}-{i}", CRITERIA, CUTOFF, bond, sender=who)
+                open_markets.append(m)
+                bond_of[m] = bond
             elif action == "dispute" and open_markets:
-                src = rng.choice([REUTERS, "https://deadsource.org/x"])
-                disputes.append(chain.call("raise_dispute", rng.choice(open_markets), [src], sender=who, value=DISPUTE_BOND))
+                src = rng.choice([REUTERS, REUTERS, "https://deadsource.org/x"])
+                m = rng.choice(open_markets)
+                # Occasionally post the default bond on a scaled market: must revert.
+                value = bond_of[m] if rng.random() < 0.85 else DISPUTE_BOND
+                d = chain.call("raise_dispute", m, [src], sender=who, value=value)
+                disputes.append(d)
+                bond_of[d] = bond_of[m]
             elif action == "challenge" and disputes:
-                chain.call("challenge_verdict", rng.choice(disputes), [rng.choice([COUNTER_1, COUNTER_2, GOV])], sender=who, value=COUNTER_BOND)
+                d = rng.choice(disputes)
+                chain.call("challenge_verdict", d, [rng.choice([COUNTER_1, COUNTER_2, GOV])], sender=who, value=2 * bond_of[d])
             elif action == "finalize" and disputes:
                 chain.call("finalize_resolution", rng.choice(disputes), sender=who)
-            elif action == "release" and disputes:
-                chain.call("release_stale_dispute", rng.choice(disputes), sender=who)
             elif action == "claim":
                 chain.call("claim", sender=who)
             elif action == "wait":
-                now += rng.choice([600, STALE, WINDOW])
+                now += rng.choice([600, 6 * 3600, WINDOW])
                 chain.warp(now)
             else:
                 continue
@@ -220,13 +231,12 @@ def test_randomized_lifecycles_conserve_value(funded, direct_alice, direct_bob, 
     assert ok.get("dispute", 0) >= 1 and ok.get("challenge", 0) + ok.get("finalize", 0) + ok.get("claim", 0) >= 1, ok
 
     # Drain: close everything out and claim; the contract must end empty.
-    chain.warp(now + WINDOW + STALE)
+    chain.warp(now + WINDOW)
     for d in disputes:
         status = chain.view("get_dispute", d)["status"]
+        assert status in ("ACTIVE_CHALLENGE", "FINALIZED", "OVERTURNED"), status  # nothing is ever parked
         if status == "ACTIVE_CHALLENGE":
             chain.call("finalize_resolution", d, sender=direct_alice)
-        elif status == "PENDING_CONSENSUS":
-            chain.call("release_stale_dispute", d, sender=direct_alice)
     for who in people:
         try:
             chain.call("claim", sender=who)

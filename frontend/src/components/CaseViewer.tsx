@@ -8,16 +8,20 @@ const isTier1 = (url: string) => {
   return TIER1.some((s) => h === s || h.endsWith(`.${s}`))
 }
 
-function EvidenceList({ urls, hashes, excerpts, side }: {
+function EvidenceList({ urls, hashes, excerpts, side, edited = [] }: {
   urls: string[]
   hashes: string[]
   excerpts?: Record<string, string>
   side: 'reporter' | 'challenger'
+  edited?: string[]
 }) {
   return (
     <ul className="space-y-2.5">
       {urls.map((url, i) => (
-        <li key={url} className="rounded-xl border border-white/[0.07] bg-black/20 p-3">
+        <li
+          key={url}
+          className={`rounded-xl border bg-black/20 p-3 ${edited.includes(url) ? 'border-amber-300/30' : 'border-white/[0.07]'}`}
+        >
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <a href={url} target="_blank" rel="noreferrer noopener" className="truncate text-sm font-medium text-slate-200 hover:text-emerald-300">
               {hostOf(url)}
@@ -32,8 +36,16 @@ function EvidenceList({ urls, hashes, excerpts, side }: {
             </span>
           </div>
           {excerpts?.[url] && <p className="mb-2 text-[13px] leading-relaxed text-slate-300">{excerpts[url]}</p>}
-          <p className="font-mono text-[10px] text-slate-500" title="keccak256 of the URL, committed on chain">
-            {side === 'challenger' ? 'counter ' : ''}keccak {shortHex(hashes[i] ?? '', 8)}
+          {edited.includes(url) && (
+            <p className="mb-2 rounded-md bg-amber-300/[0.08] px-2 py-1 text-[11px] text-amber-200">
+              Text changed after the round-1 verdict. Round 2 was told so.
+            </p>
+          )}
+          <p
+            className="font-mono text-[10px] text-slate-500"
+            title={`keccak256 of the sanitized text this source served in round ${side === 'challenger' ? 2 : 1}, committed on chain`}
+          >
+            {hashes[i] ? `content keccak ${shortHex(hashes[i], 8)}` : 'unreadable when read'}
           </p>
         </li>
       ))}
@@ -93,14 +105,14 @@ export function CaseViewer({ c }: { c: Case | undefined }) {
           <dl className="mt-3 grid grid-cols-2 gap-y-1.5 text-xs">
             <dt className="text-slate-500">Cutoff</dt>
             <dd className="text-right font-mono text-slate-300">{new Date(market.cutoff_timestamp * 1000).toISOString().slice(0, 16).replace('T', ' ')}Z</dd>
-            <dt className="text-slate-500">Reporter bond</dt>
-            <dd className="text-right font-mono text-slate-300">{formatGen(dispute.bond_amount)}</dd>
-            {dispute.challenged && (
-              <>
-                <dt className="text-slate-500">Counter bond</dt>
-                <dd className="text-right font-mono text-slate-300">{formatGen(dispute.counter_bond)}</dd>
-              </>
-            )}
+            <dt className="text-slate-500">Market bond</dt>
+            <dd className="text-right font-mono text-slate-300">
+              {formatGen(market.dispute_bond)} / {formatGen(market.counter_bond)}
+            </dd>
+            <dt className="text-slate-500">Criteria hash</dt>
+            <dd className="truncate text-right font-mono text-slate-300" title={market.criteria_hash}>
+              {shortHex(market.criteria_hash, 5)}
+            </dd>
             <dt className="text-slate-500">Sources read</dt>
             <dd className="text-right font-mono text-slate-300">
               {dispute.sources_read} / {dispute.evidence_urls.length}
@@ -110,7 +122,13 @@ export function CaseViewer({ c }: { c: Case | undefined }) {
 
         <div>
           <h3 className="eyebrow mb-2.5">2 · Web evidence</h3>
-          <EvidenceList urls={dispute.evidence_urls} hashes={dispute.evidence_hashes} excerpts={excerpts} side="reporter" />
+          <EvidenceList
+            urls={dispute.evidence_urls}
+            hashes={dispute.evidence_hashes}
+            excerpts={excerpts}
+            side="reporter"
+            edited={dispute.stealth_edits}
+          />
           {dispute.challenged && (
             <>
               <h4 className="eyebrow mb-2 mt-4 text-rose-300/80">Counter evidence</h4>
@@ -121,13 +139,12 @@ export function CaseViewer({ c }: { c: Case | undefined }) {
 
         <div className="space-y-3 md:col-span-2 2xl:col-span-1">
           <h3 className="eyebrow mb-2.5">3 · AI rationale</h3>
-          {dispute.status === 'PENDING_CONSENSUS' ? (
-            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-[13px] leading-relaxed text-amber-100/90">
-              Validators could not read any evidence source ({dispute.rationale || 'unreachable'}). The bond stays staked; anyone may
-              call <code className="font-mono text-amber-200">retry_arbitration</code>, and after 6h anyone may release the dispute with a full refund.
+          <Rationale label="Round 1" verdict={dispute.verdict} rationale={dispute.rationale} bps={dispute.confidence_bps} />
+          {dispute.stealth_edit_detected && (
+            <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] px-4 py-3 text-[12.5px] leading-relaxed text-amber-100/90">
+              {dispute.stealth_edits.length} round-1 source{dispute.stealth_edits.length > 1 ? 's' : ''} changed before round 2 read{' '}
+              {dispute.stealth_edits.length > 1 ? 'them' : 'it'}. The contract added an integrity notice to the round-2 prompt.
             </div>
-          ) : (
-            <Rationale label="Round 1" verdict={dispute.verdict} rationale={dispute.rationale} bps={dispute.confidence_bps} />
           )}
           {dispute.challenged && (
             <Rationale

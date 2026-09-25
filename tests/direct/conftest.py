@@ -30,7 +30,6 @@ ATTO = 10**18
 DISPUTE_BOND = 2 * ATTO
 COUNTER_BOND = 4 * ATTO
 WINDOW = 24 * 60 * 60
-STALE = 6 * 60 * 60
 
 YES = "OUTCOME_YES"
 NO = "OUTCOME_NO"
@@ -59,6 +58,11 @@ def iso(ts: int) -> str:
 
 def keccak_hex(s: str) -> str:
     return "0x" + keccak(s.encode("utf-8")).hex()
+
+
+def expected_market_id(url: str, criteria: str, cutoff: int, bond: int = DISPUTE_BOND) -> str:
+    """Off-chain derivation a consumer contract or UI would perform."""
+    return keccak_hex(f"{url}:{cutoff}:{keccak_hex(criteria)}:{bond}")
 
 
 def page(text: str, status: int = 200) -> dict:

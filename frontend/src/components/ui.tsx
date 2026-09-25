@@ -21,11 +21,9 @@ export function VerdictBadge({ verdict, size = 'sm' }: { verdict: Verdict | ''; 
 }
 
 const STATUS_STYLE: Record<DisputeStatus, { dot: string; text: string; label: string }> = {
-  PENDING_CONSENSUS: { dot: 'bg-amber-300', text: 'text-amber-200', label: 'Pending consensus' },
   ACTIVE_CHALLENGE: { dot: 'bg-indigo-400 animate-pulse', text: 'text-indigo-200', label: 'Challenge window' },
   FINALIZED: { dot: 'bg-emerald-400', text: 'text-emerald-300', label: 'Finalized' },
   OVERTURNED: { dot: 'bg-rose-400', text: 'text-rose-300', label: 'Overturned' },
-  WITHDRAWN: { dot: 'bg-slate-500', text: 'text-slate-400', label: 'Withdrawn' },
 }
 
 export function StatusPill({ status }: { status: DisputeStatus }) {

@@ -4,14 +4,13 @@ import { Countdown } from './Countdown'
 import { Confidence, Panel, StatusPill, VerdictBadge } from './ui'
 
 const FILTERS: { key: 'all' | 'triage' | 'settled'; label: string; match: (s: DisputeStatus) => boolean }[] = [
-  { key: 'triage', label: 'Triage', match: (s) => s === 'ACTIVE_CHALLENGE' || s === 'PENDING_CONSENSUS' },
-  { key: 'settled', label: 'Settled', match: (s) => s === 'FINALIZED' || s === 'OVERTURNED' || s === 'WITHDRAWN' },
+  { key: 'triage', label: 'Triage', match: (s) => s === 'ACTIVE_CHALLENGE' },
+  { key: 'settled', label: 'Settled', match: (s) => s === 'FINALIZED' || s === 'OVERTURNED' },
   { key: 'all', label: 'All', match: () => true },
 ]
 
-// Triage order: disputes that need attention soonest come first.
-const rank = (c: Case) =>
-  c.dispute.status === 'PENDING_CONSENSUS' ? 0 : c.dispute.status === 'ACTIVE_CHALLENGE' ? 1 : 2
+// Triage order: open windows first, soonest deadline first.
+const rank = (c: Case) => (c.dispute.status === 'ACTIVE_CHALLENGE' ? 0 : 1)
 
 export function DisputeFeed({ cases, selected, onSelect }: {
   cases: Case[]
@@ -66,7 +65,14 @@ export function DisputeFeed({ cases, selected, onSelect }: {
                   }`}
                 >
                   <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <StatusPill status={dispute.status} />
+                    <span className="flex items-center gap-2">
+                      <StatusPill status={dispute.status} />
+                      {dispute.stealth_edit_detected && (
+                        <span className="rounded bg-amber-300/10 px-1.5 py-0.5 font-mono text-[10px] text-amber-200" title="A round-1 source changed before round 2 read it">
+                          EDITED SOURCE
+                        </span>
+                      )}
+                    </span>
                     <VerdictBadge verdict={dispute.final_verdict || dispute.challenge_verdict || dispute.verdict} />
                   </div>
                   <p className="line-clamp-2 text-sm leading-snug text-slate-200">{market.resolution_criteria}</p>

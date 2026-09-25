@@ -60,7 +60,7 @@ def test_unbound_challenge_reverts(funded, direct_alice, direct_bob):
 
 def test_counter_bond_is_twice_the_dispute_bond(chain):
     cfg = chain.view("get_config")
-    assert int(cfg["counter_bond"]) == 2 * int(cfg["dispute_bond"])
+    assert cfg["counter_bond_multiplier"] == 2 and int(cfg["default_dispute_bond"]) == DISPUTE_BOND
     assert COUNTER_BOND == 4 * ATTO and DISPUTE_BOND == 2 * ATTO
 
 
@@ -165,7 +165,11 @@ def test_challenge_overturns_and_pays_challenger(funded, direct_alice, direct_bo
     assert d["challenger"].lower() == chain_hex(chain, direct_bob).lower()
     assert d["counter_bond"] == str(COUNTER_BOND)
     assert d["counter_evidence_urls"] == [COUNTER_1, COUNTER_2]
-    assert d["counter_evidence_hashes"] == [keccak_hex(COUNTER_1), keccak_hex(COUNTER_2)]
+    assert d["counter_evidence_hashes"] == [
+        keccak_hex(chain.view("sanitize_preview", page("Hostilities resumed within minutes; officials say the deal never took effect.")["body"])),
+        keccak_hex(chain.view("sanitize_preview", page("Both sides accuse each other of breaking the truce ten minutes after signing.")["body"])),
+    ]
+    assert d["stealth_edit_detected"] is False
     assert d["challenge_verdict"] == SPLIT
     assert d["challenge_confidence_bps"] == 8800
     assert d["status"] == "ACTIVE_CHALLENGE"

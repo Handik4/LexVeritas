@@ -17,6 +17,28 @@ import { sampleCases } from './lib/samples'
 
 type Source = 'loading' | 'live' | 'sample' | 'offline'
 
+/**
+ * A reverted payable call leaves its value in the contract until the
+ * transaction finalizes (about half a minute on Studio Next), then GenLayer
+ * returns it to the sender. A surplus is therefore expected briefly; only a
+ * shortfall, or a broken ledger, is a real problem.
+ */
+function SolvencyState({ accounting }: { accounting: Accounting }) {
+  const balance = BigInt(accounting.balance)
+  const liabilities = BigInt(accounting.liabilities)
+  if (!accounting.ledger_ok || balance < liabilities) {
+    return <span className="text-rose-300">invariant violated: balance below liabilities</span>
+  }
+  if (balance > liabilities) {
+    return (
+      <span className="text-amber-200" title="Value from a reverted transaction is returned to its sender at finalization">
+        settling: {formatGen((balance - liabilities).toString())} pending refund
+      </span>
+    )
+  }
+  return <span className="text-emerald-300">staked + uncollected == balance</span>
+}
+
 const REFRESH_MS = 20_000
 // Sample ids are abbreviated with '...'; live dispute ids are full keccak hex.
 const isSample = (c: Case) => c.dispute.dispute_id.includes('...')
@@ -133,9 +155,7 @@ export default function App() {
           <span className="text-slate-400">
             Balance <span className="font-mono text-slate-200">{formatGen(accounting.balance)}</span>
           </span>
-          <span className={accounting.balance_matches && accounting.ledger_ok ? 'text-emerald-300' : 'text-rose-300'}>
-            {accounting.balance_matches && accounting.ledger_ok ? 'staked + uncollected == balance' : 'invariant mismatch'}
-          </span>
+          <SolvencyState accounting={accounting} />
         </footer>
       )}
     </div>

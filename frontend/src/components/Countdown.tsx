@@ -22,9 +22,6 @@ const hms = (s: number) => {
 /** 24h challenge timelock. The deadline is fixed on chain at filing; this only renders it. */
 export function Countdown({ dispute, compact = false }: { dispute: Dispute; compact?: boolean }) {
   const now = useNow()
-  if (dispute.status === 'PENDING_CONSENSUS') {
-    return <p className="text-xs text-amber-200/80">Window starts once validators reach a verdict.</p>
-  }
   if (!dispute.challenge_deadline) return null
 
   const settledEarly = dispute.challenged && dispute.status === 'ACTIVE_CHALLENGE'

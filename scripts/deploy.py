@@ -76,6 +76,7 @@ def main() -> int:
     ap.add_argument("--name", default="studio-next", help="network label used in the artifact file name")
     ap.add_argument("--retries", type=int, default=120)
     ap.add_argument("--fees", default=None, help="fee options JSON; default is a live estimate")
+    ap.add_argument("--revision", default=None, help="free-text note recorded in the artifact")
     args = ap.parse_args()
 
     source = CONTRACT.read_text(encoding="utf-8")
@@ -136,9 +137,21 @@ def main() -> int:
         # wait_for_transaction_receipt returned, so the tx reached "decided";
         # some receipt shapes carry only the result name, not the status.
         "consensus": {"status": status or "DECIDED", "result": result},
+        "revision": args.revision,
     }
     out = ROOT / "deployments" / f"{args.name}.json"
     out.parent.mkdir(exist_ok=True)
+    # Keep an audit trail: a redeploy records what it replaced instead of
+    # silently overwriting the previous address.
+    if out.exists():
+        prior = json.loads(out.read_text(encoding="utf-8"))
+        history = list(prior.pop("supersedes", []))
+        history.insert(0, {
+            k: prior.get(k)
+            for k in ("contract_address", "deploy_tx", "deployed_at", "source_sha256", "revision")
+            if prior.get(k) is not None
+        })
+        artifact["supersedes"] = history
     out.write_text(json.dumps(artifact, indent=2, default=str) + "\n", encoding="utf-8")
     print(f"artifact: {out.relative_to(ROOT)}")
     return 0

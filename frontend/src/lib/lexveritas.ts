@@ -13,7 +13,9 @@ export type Verdict =
   | 'OUTCOME_AMBIGUOUS_SPLIT_50_50'
   | 'OUTCOME_INVALID_MARKET'
 
-export type DisputeStatus = 'PENDING_CONSENSUS' | 'ACTIVE_CHALLENGE' | 'FINALIZED' | 'OVERTURNED' | 'WITHDRAWN'
+// PENDING_CONSENSUS is a transaction-level state (validators deliberating) and is
+// never stored: a dispute whose sources nobody can read reverts instead.
+export type DisputeStatus = 'ACTIVE_CHALLENGE' | 'FINALIZED' | 'OVERTURNED'
 
 export interface Market {
   market_id: string
@@ -26,6 +28,9 @@ export interface Market {
   outcome: Verdict | ''
   active_dispute_id: string
   resolved_at: number
+  dispute_bond: string
+  counter_bond: string
+  criteria_hash: string
 }
 
 export interface Dispute {
@@ -38,11 +43,11 @@ export interface Dispute {
   confidence_bps: number
   sources_read: number
   evidence_urls: string[]
+  /** keccak256 of the sanitized text each source served in round 1; '' if unreadable. */
   evidence_hashes: string[]
   filed_at: number
   challenge_deadline: number
   status: DisputeStatus
-  attempts: number
   challenged: boolean
   challenger: string
   counter_bond: string
@@ -53,6 +58,9 @@ export interface Dispute {
   challenge_confidence_bps: number
   final_verdict: Verdict | ''
   settled_at: number
+  /** Round-1 URLs whose text changed before round 2 read them. */
+  stealth_edits: string[]
+  stealth_edit_detected: boolean
 }
 
 export interface Ruling {
