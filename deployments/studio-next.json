@@ -1,0 +1,58 @@
+{
+  "network": "studio-next",
+  "rpc_url": "https://studio-next.genlayer.com/api",
+  "chain_id": 61997,
+  "contract": "LexVeritas",
+  "contract_address": "0xD829765Ff320a79D0F557192569906683F80C951",
+  "explorer_url": "https://explorer-studio-next.genlayer.com/address/0xD829765Ff320a79D0F557192569906683F80C951",
+  "deploy_tx": "0xfa4f1cb00a176c9a3b6b46976dbba5b2e86e08b3e01e71970f7bed1a5b51e357",
+  "deployer": "0x3c4FF52dbb8355aBF699a1c47FCc71e0bF18E515",
+  "deployed_at": "2026-09-25T05:01:11Z",
+  "source": "contracts/lex_veritas.py",
+  "source_sha256": "21d11b602edbf684c11d8127f09869e076dffbea6fe584b573e2bd5613dd36fd",
+  "runner": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
+  "version": "0.3.0",
+  "config": {
+    "challenge_window_seconds": 86400,
+    "counter_bond": "4000000000000000000",
+    "dispute_bond": "2000000000000000000",
+    "max_evidence_urls": 3,
+    "min_confidence_bps": 5000,
+    "stale_pending_after_seconds": 21600,
+    "tier1_suffixes": [
+      "reuters.com",
+      "apnews.com",
+      "bloomberg.com",
+      "afp.com",
+      "bbc.co.uk",
+      "bbc.com",
+      "sec.gov",
+      "federalregister.gov",
+      "congress.gov",
+      "europa.eu",
+      "un.org",
+      "fec.gov"
+    ],
+    "verdicts": [
+      "OUTCOME_YES",
+      "OUTCOME_NO",
+      "OUTCOME_AMBIGUOUS_SPLIT_50_50",
+      "OUTCOME_INVALID_MARKET"
+    ],
+    "version": "0.3.0"
+  },
+  "accounting_at_deploy": {
+    "balance": "0",
+    "balance_matches": true,
+    "ledger_ok": true,
+    "liabilities": "0",
+    "total_deposited": "0",
+    "total_staked_bonds": "0",
+    "total_withdrawn": "0",
+    "uncollected_rewards": "0"
+  },
+  "consensus": {
+    "status": "DECIDED",
+    "result": "MAJORITY_AGREE"
+  }
+}

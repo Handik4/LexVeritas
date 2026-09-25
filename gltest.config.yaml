@@ -1,0 +1,11 @@
+# gltest network configuration. The direct suite (tests/direct/) runs in memory
+# and never dials a network; this file only matters for gltest integration runs
+# and silences the "config not found" warning.
+networks:
+  default: localnet
+  localnet:
+    url: "http://127.0.0.1:4000/api"
+  studio_devnet:  # chain 61997 = Studio Next
+    url: "https://studio-next.genlayer.com/api"
+paths:
+  contracts: "contracts"

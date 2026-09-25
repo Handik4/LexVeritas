@@ -1,0 +1,16 @@
+[project]
+name = "lex-veritas"
+version = "0.3.0"
+description = "Autonomous semantic dispute oracle for prediction markets on GenVM"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Handik4", email = "ehemati08@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["genlayer-test==0.30.0rc2", "pytest>=8"]
+deploy = ["genlayer-py>=0.19.0rc2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/direct"]
