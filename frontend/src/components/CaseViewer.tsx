@@ -38,7 +38,7 @@ function EvidenceList({ urls, hashes, excerpts, side, edited = [] }: {
           {excerpts?.[url] && <p className="mb-2 text-[13px] leading-relaxed text-slate-300">{excerpts[url]}</p>}
           {edited.includes(url) && (
             <p className="mb-2 rounded-md bg-amber-300/[0.08] px-2 py-1 text-[11px] text-amber-200">
-              Text changed after the round-1 verdict. Round 2 was told so.
+              Content hash differs from the round-1 snapshot (layout, timestamp or editorial change). Round 2 was told, neutrally.
             </p>
           )}
           <p
@@ -142,8 +142,8 @@ export function CaseViewer({ c }: { c: Case | undefined }) {
           <Rationale label="Round 1" verdict={dispute.verdict} rationale={dispute.rationale} bps={dispute.confidence_bps} />
           {dispute.stealth_edit_detected && (
             <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] px-4 py-3 text-[12.5px] leading-relaxed text-amber-100/90">
-              {dispute.stealth_edits.length} round-1 source{dispute.stealth_edits.length > 1 ? 's' : ''} changed before round 2 read{' '}
-              {dispute.stealth_edits.length > 1 ? 'them' : 'it'}. The contract added an integrity notice to the round-2 prompt.
+              {dispute.stealth_edits.length} round-1 source{dispute.stealth_edits.length > 1 ? 's' : ''} served different content in round 2.
+              The contract added a neutral content-change notice to the round-2 prompt.
             </div>
           )}
           {dispute.challenged && (

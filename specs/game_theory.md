@@ -131,11 +131,13 @@ criteria applied to public reporting, then:
    block. The griefer pays transaction fees (about 0.00008 GEN measured on
    Studio Next) and gets the bond back at finalization. There is no lock left to
    buy.
-4a. **Stealth edits.** A source edited after round 1 could rewrite the record
-   for round 2. Round 2 is now told which sources changed (content hashes).
-   The hashes are leader-attested, so a dishonest round-1 leader could plant a
-   false "modified" notice. The notice only asks the model to weigh the source
-   with care, and the verdict rule is unchanged.
+4a. **Stealth edits.** A source edited after round 1 could change what round 2
+   reads. Round 2 is now told, in neutral terms, which sources' content hashes
+   changed. The notice names routine layout and timestamp churn as a likely
+   cause and asks for an impartial evaluation, so it does not tilt the verdict
+   against the reporter. The hashes are leader-attested: a dishonest round-1
+   leader could trigger the notice for an unchanged page, but because the
+   notice is neutral, that gains the attacker nothing.
 5. **No in-contract appeal beyond round 2.** Round 2 is final inside the
    contract. GenLayer's native appeal mechanism still applies to each
    transaction (a disputed `challenge_verdict` transaction can be appealed to a

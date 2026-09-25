@@ -68,8 +68,8 @@ export function DisputeFeed({ cases, selected, onSelect }: {
                     <span className="flex items-center gap-2">
                       <StatusPill status={dispute.status} />
                       {dispute.stealth_edit_detected && (
-                        <span className="rounded bg-amber-300/10 px-1.5 py-0.5 font-mono text-[10px] text-amber-200" title="A round-1 source changed before round 2 read it">
-                          EDITED SOURCE
+                        <span className="rounded bg-amber-300/10 px-1.5 py-0.5 font-mono text-[10px] text-amber-200" title="A round-1 source's content hash changed before round 2 read it">
+                          CONTENT CHANGED
                         </span>
                       )}
                     </span>

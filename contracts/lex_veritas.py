@@ -70,7 +70,6 @@ UNRESOLVED = "UNRESOLVED"  # sentinel: no evidence source readable
 # Dispute statuses. PENDING_CONSENSUS is the state of a raise_dispute
 # transaction while validators deliberate; it is never stored, because a round
 # that cannot reach a verdict reverts instead of parking the bond.
-DS_PENDING = "PENDING_CONSENSUS"
 DS_ACTIVE = "ACTIVE_CHALLENGE"
 DS_FINALIZED = "FINALIZED"
 DS_OVERTURNED = "OVERTURNED"
@@ -88,8 +87,14 @@ ERR_LLM = "[LLM_ERROR]"
 ERR_UNRESOLVED_EVIDENCE = "[UNRESOLVED_EVIDENCE]"
 
 # Written by the contract, never by a source: the sanitizer redacts any
-# "[NOTICE" a page tries to smuggle in, so only this code can emit it.
-STEALTH_EDIT_NOTICE = "[NOTICE: Evidence source was modified after Round 1 verdict]"
+# "[NOTICE" a page tries to smuggle in, so only this code can emit it. The
+# wording is deliberately neutral: a changed hash is a fact, not evidence of bad
+# faith, and most changes are sidebars, timestamps and routine corrections.
+STEALTH_EDIT_NOTICE = (
+    "[NOTICE: Ingested evidence content hash differs from Round 1 snapshot. "
+    "This may reflect routine peripheral layout/timestamp updates or editorial revisions. "
+    "Evaluate the core factual dispute impartially.]"
+)
 
 # Domains treated as tier-1 wire services or primary registers. Membership only
 # labels a source in the prompt; it never gates admission, because a primary
@@ -140,7 +145,7 @@ _INJECTION_PATTERNS = [
         # Output keys count only as quoted JSON keys; "Jury verdict: not guilty"
         # is legal language the arbitrator must be able to read.
         r'"(?:verdict|rationale|confidence|status)"\s*:',
-        r"\[\s*NOTICE\b[^\]\n]{0,160}\]?",
+        r"\[\s*NOTICE\b[^\]\n]{0,400}\]?",
     )
 ]
 
@@ -334,7 +339,7 @@ def _ask_llm(prompt: str):
 def _evidence_block(sources: list, side: str) -> str:
     parts = []
     for i, s in enumerate(sources, 1):
-        flag = ' modified_after_round1="true"' if s.get("modified") else ""
+        flag = ' content_hash_changed="true"' if s.get("modified") else ""
         parts.append(
             f'<evidence side="{side}" n="{i}" host="{s["host"]}" tier="{s["tier"]}"{flag}>\n'
             f'{s["text"]}\n</evidence>'
@@ -347,10 +352,8 @@ def build_prompt(
 ) -> str:
     integrity = (
         f"""
-=== 2b. INTEGRITY NOTICES (written by the contract, not by any source) ===
+=== 2b. CONTENT CHANGE NOTICES (written by the contract, not by any source) ===
 {notices}
-Weigh a modified source with care: its current text is not what round 1 read,
-and a post-dispute edit may be a correction or an attempt to rewrite the record.
 """
         if notices
         else ""
@@ -631,8 +634,8 @@ class LexVeritas(gl.contract.Contract):
             if is_challenge and not counter_src:
                 return {"verdict": UNRESOLVED, "reason": "no counter evidence readable",
                         "sources_read": len(primary_src), "counter_read": 0}
-            # A source counts as silently edited only when round 1 read it and
-            # it is readable now with different text. A source that merely went
+            # A source counts as changed only when round 1 read it and it is
+            # readable now with different text. A source that merely went
             # offline is absent from the prompt instead.
             modified = []
             for i, url in enumerate(primary):

@@ -156,7 +156,7 @@ sequenceDiagram
     C->>K: challenge_verdict(dispute_id, counter_urls) + 2B
     K->>K: checks: value == 2B, ACTIVE_CHALLENGE, not challenged,<br/>now < deadline, caller != reporter, counter urls new
     K->>N: _arbitrate(original urls, counter urls, round-1 hashes)
-    N->>N: re-hash each original source; changed text -> integrity notice
+    N->>N: re-hash each original source; changed text -> neutral content-change notice
     N-->>K: blind ruling over both evidence sets (+ modified sources)
     alt no counter source readable
         K-->>C: revert (bond returned, window keeps running)
@@ -272,14 +272,41 @@ A URL is flagged only when **both** hashes are non-empty and differ. A source
 that merely went offline is left out of the prompt; it is not reported as
 edited. For each flagged URL the contract:
 
-* writes `[NOTICE: Evidence source was modified after Round 1 verdict] host=...`
-  into a `=== 2b. INTEGRITY NOTICES ===` section placed after all evidence;
-* sets `modified_after_round1="true"` on that source's evidence tag;
+* writes the notice below, followed by `host=...`, into a
+  `=== 2b. CONTENT CHANGE NOTICES ===` section placed after all evidence:
+
+  `[NOTICE: Ingested evidence content hash differs from Round 1 snapshot. This may reflect routine peripheral layout/timestamp updates or editorial revisions. Evaluate the core factual dispute impartially.]`
+
+* sets `content_hash_changed="true"` on that source's evidence tag;
 * records the URL in the dispute's `stealth_edits`.
 
-Hashing the sanitized text rather than the raw body means markup churn (ads,
-script tags, cache busters) does not read as an edit. Changes to visible text,
-including a live blog's new entries, do.
+The wording is deliberately neutral. It states a fact (the hash differs), names
+the common harmless causes first, and asks for an impartial evaluation of the
+core factual dispute. Nothing in the prompt describes a change as an edit, an
+attack or a reason for distrust. Round 2 must be able to rely on a source whose
+sidebar changed, and it must still notice when the reporting itself changed.
+
+### Residual risk: peripheral page churn
+
+Hashing the sanitized text rather than the raw body means markup-only churn
+(ads, script tags, cache busters, attribute changes) does not change the hash.
+Changes to **visible** text do, including text that has nothing to do with the
+dispute:
+
+* sidebars, "most read" and related-article lists;
+* "updated N minutes ago" stamps and live timestamps;
+* bylines, share counts, cookie and subscription banners rendered as text;
+* a live blog's new entries.
+
+On a busy news page the notice will therefore often fire for harmless reasons.
+That is acceptable because of how it is worded: the model is told that a
+changed hash *may reflect routine peripheral layout/timestamp updates or
+editorial revisions* and is instructed to *evaluate the core factual dispute
+impartially*. The notice asks the model to compare carefully, not to discount
+the source. `stealth_edits` and `stealth_edit_detected` in `get_dispute` carry
+the same meaning: a hash changed, nothing more. Extracting only the article body
+before hashing would cut false positives but needs per-site heuristics that
+validators would have to agree on, so it is left for a later revision.
 
 ## 7. Properties and where they are tested
 

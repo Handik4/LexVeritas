@@ -110,7 +110,7 @@ export function sampleCases(): Case[] {
         counter_evidence_hashes: ['0x99f85f91f04f953de1cd670973ddeb8fe824f8978b7eb3ccbcd84e03b212438b'],
         challenge_verdict: 'OUTCOME_NO',
         challenge_rationale:
-          'The criteria require a signed order on sec.gov. The primary register shows the order was signed on July 2, after the cutoff. The reporter-side article was modified after round 1, so its current wording is given little weight; it describes a commissioner statement, which the criteria exclude.',
+          'The criteria require a signed order on sec.gov. The primary register shows the order was signed on July 2, after the cutoff. The content of the reporter-side article changed after round 1; on the core factual question it still describes only a commissioner statement, which the criteria exclude.',
         challenge_confidence_bps: 9500,
         final_verdict: 'OUTCOME_NO',
         settled_at: t - 30 * H,

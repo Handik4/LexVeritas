@@ -111,9 +111,9 @@ stateDiagram-v2
    reporter, using URLs the reporter did not cite. Round 2 reads both sides'
    evidence and is **not shown** the round-1 verdict, so it cannot anchor on it.
    If a round-1 source now serves different text from what round 1 hashed, the
-   contract adds `[NOTICE: Evidence source was modified after Round 1 verdict]` to
-   the prompt, outside every evidence tag, and records the URL in
-   `stealth_edits`. If no counter source can be read, the challenge reverts.
+   contract adds a neutral notice to the prompt, outside every evidence tag, and
+   records the URL in `stealth_edits`:
+   `[NOTICE: Ingested evidence content hash differs from Round 1 snapshot. This may reflect routine peripheral layout/timestamp updates or editorial revisions. Evaluate the core factual dispute impartially.]`. If no counter source can be read, the challenge reverts.
 4. **`finalize_resolution(dispute_id)`**, callable by anyone. For an unchallenged
    dispute it can be called once the window has closed. For a challenged dispute
    it can be called straight away, because round 2 is final.
@@ -273,7 +273,8 @@ should price them in.
 | **Paywalled domains** | Paywalled wires (some Bloomberg or FT pages) return a teaser or 403 | Non-2xx responses are skipped; tier labels encourage open sources such as AP and primary registers | A paywall that returns 200 with a teaser page is read as thin evidence |
 | **Validator divergence on dynamic pages** | Live blogs and pages with rotating content can differ between the leader's fetch and a validator's | Validators compare verdicts, not page bytes | Heavy divergence causes disagreement and rotation, which can end in no consensus |
 | **JavaScript-rendered pages** | `web.get` returns raw HTML; content injected client-side is missing | Markup stripping keeps server-rendered text | Single-page apps may read as empty |
-| **Stealth edits** | A source edited after round 1 shows different text in round 2 | Round-1 content hashes are stored; round 2 is told which sources changed | Hashes are **leader-attested**: validators agree on the verdict, not on the hash, since dynamic pages would never match. A dishonest round-1 leader could record wrong hashes and trigger a false notice in round 2. The notice asks for care but does not change the verdict rule. Dynamic pages (live blogs) also produce true-but-harmless notices |
+| **Stealth edits** | A source edited after round 1 shows different text in round 2 | Round-1 content hashes are stored; round 2 is told which sources changed | Hashes are **leader-attested**: validators agree on the verdict, not on the hash, since dynamic pages would never match. A dishonest round-1 leader could record wrong hashes and trigger a notice in round 2 for an unchanged page. The notice is neutral and does not change the verdict rule, which limits the damage to one extra, even-handed sentence in the prompt |
+| **Peripheral page churn** | Sidebars, "most read" lists, bylines, "updated N minutes ago" stamps and related-article blocks change a page's visible text without touching its reporting, so its content hash changes and the notice fires | Hashing sanitized text (not raw HTML) filters out markup-only churn. The notice says outright that a changed hash *may reflect routine peripheral layout/timestamp updates or editorial revisions*, and tells the model to *evaluate the core factual dispute impartially*. Nothing in the prompt treats a change as bad faith | On busy news pages the notice will often fire for harmless reasons, so it signals "compare carefully", not "distrust". `stealth_edit_detected` in `get_dispute` means the same thing: a hash changed, nothing more |
 | **Model variance on borderline facts** | Rounds 1 and 2 can differ from noise alone | Low-confidence binary verdicts become `SPLIT`; the 2x counter bond needs `q > 2/3` | Not eliminated; see game_theory.md section 5 |
 | **Evidence curation** | The reporter picks the sources | Round 2 reads both sides; sources are tier-labelled | Only works if a counterparty challenges |
 | **Prompt injection** | Evidence text addresses the model | Structural fencing, marker redaction, angle-bracket escaping, closed verdict enum; tested, and resisted live | Redaction is pattern-based and now deliberately narrower (see section 10), so the fencing and the enum carry more of the weight |
